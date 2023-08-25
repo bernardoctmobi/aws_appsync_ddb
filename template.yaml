@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  TableName:
+    Type: String
+    Default: Table
+
+Resources:
+  DynamoDBTalbe:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+    AttributeDefinitions:
+      - AttributeName: "PK"
+      - AttributeType: "S"
+      - AttributeName: "SK"
+        AttributeType: "S"
+    KeySchema:
+      - AttributeName: "PK"
+        KeyType: "HASH"
+      - AttributeName: "SK"
+        KeyType: "RANGE"
+
+  DDBTablePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Resource:
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTable}
