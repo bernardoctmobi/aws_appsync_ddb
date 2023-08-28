@@ -10,23 +10,23 @@ Parameters:
     Default: ApiName
   ApiKeyExpiration:
     Type: Number
-    Default: 30
 
 Resources:
-  DynamoDBTalbe:
+  DynamoDBTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      BillingMode: PAY_PER_REQUEST
       TableName: !Ref TableName
-    AttributeDefinitions:
-      - AttributeName: "PK"
-      - AttributeType: "S"
-      - AttributeName: "SK"
-        AttributeType: "S"
-    KeySchema:
-      - AttributeName: "PK"
-        KeyType: "HASH"
-      - AttributeName: "SK"
-        KeyType: "RANGE"
+      AttributeDefinitions:
+        - AttributeName: "PK"
+          AttributeType: "S"
+        - AttributeName: "SK"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "PK"
+          KeyType: "HASH"
+        - AttributeName: "SK"
+          KeyType: "RANGE"
 
   DDBTablePolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -79,7 +79,7 @@ Resources:
       Name: !Ref ApiName
       AuthenticationType: API_KEY
       LogConfig:
-        ClouodWatchLogsArn: !GetAtt AppsyncCloudWatchRole.Arn
+        CloudWatchLogsRoleArn: !GetAtt AppsyncCloudWatchRole.Arn
         FieldLogLevel: ALL
 
   GraphQLApiSchema:
@@ -124,7 +124,7 @@ Resources:
     Type: AWS::AppSync::DataSource
     Properties:
       ApiId: !GetAtt GraphQLApi.ApiId
-      Name: !Ref ApiName
+      Name: dynamoDB
       Type: AMAOZN_DYNAMODB
       ServiceRoleArn: !GetAtt AppSyncDDBRole.Arn
       DynamoDBConfig:
@@ -225,4 +225,4 @@ Resources:
     Type: AWS::AppSync::ApiKey
     Properties:
       ApiId: !GetAtt GraphQLApi.ApiId
-      Expires: !Ref ApiKeyExpiration
+      Expires: 1627859769
