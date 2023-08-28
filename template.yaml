@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 
 Parameters:
@@ -32,24 +32,25 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Action:
               - dynamodb:Query
               - dynamodb:GetItem
               - dynamodb:UpdateItem
+              - dynamodb:PutItem
               - dynamodb:DeleteItem
             Resource:
               - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTable}
-          
+
   AppSyncDDBRole:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
         - !Ref DDBTablePolicy
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Action:
@@ -57,14 +58,14 @@ Resources:
             Principal:
               Service:
                 - appsync.amazonaws.com
-                
+
   AppsyncCloudWatchRole:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs"
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Action:
@@ -72,7 +73,7 @@ Resources:
             Principal:
               Service:
                 - appsync.amazonaws.com
-  
+
   GraphQLApi:
     Type: AWS::AppSync::GraphQLApi
     Properties:
@@ -91,33 +92,18 @@ Resources:
           query: Query
           mutation: Mutation
         }
-        type Data {
-          data: [AWSJSON]
-          PK: String
-          SK: String
-        }
-        type DataCollection {
-          items: [Data]
-          nextToken: String
-        }
-        input WriteDataInput {
+        type Book {
           PK: String!
           SK: String!
-          data: [AWSJSON]!
-        }
-        input UpdateDataInput {
-          PK: String!
-          SK: String!
-          data: [AWSJSON]!
         }
         type Mutation {
-          writeData(input: WriteDataInput!): Data
-          updateData(input: UpdateDataInput!): Data
-          deleteData(PK: String!, SK: String!): Data
+          writeData(PK: String!, SK: String!): Book!
+          updateData(PK: String!, SK: String!): Book
+          deleteData(PK: String!, SK: String!): Book
         }
         type Query {
-          readData(PK: String!, SK: String!): Data
-          readAllPKData(PK: String!): DataCollection
+          readData(PK: String!, SK: String!): Book
+          byAuthor(SK: String!): [Book]
         }
 
   GraphQLDataSource:
@@ -125,7 +111,7 @@ Resources:
     Properties:
       ApiId: !GetAtt GraphQLApi.ApiId
       Name: dynamoDB
-      Type: AMAOZN_DYNAMODB
+      Type: AMAZON_DYNAMODB
       ServiceRoleArn: !GetAtt AppSyncDDBRole.Arn
       DynamoDBConfig:
         AwsRegion: !Sub ${AWS::Region}
@@ -141,35 +127,35 @@ Resources:
       DataSourceName: !GetAtt GraphQLDataSource.Name
       RequestMappingTemplate: >
         {
-          "version": "2017-02-28".,
+          "version": "2017-02-28",
           "operation": "GetItem",
           "key": {
             "PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
             "SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK),
           },
         }
-      RequestMappingTemplate: $util.toJson($context.result)
-
-  ReadAllPKDataResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: GraphQLApiSchema
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      TypeName: Query
-      FieldName: readAllPKData
-      DataSourceName: !GetAtt GraphQLDataSource.Name
-      RequestMappingTemplate: >
-        {
-          "version": "2017-02-28",
-          "operation": "Query",
-          "query": {
-            "expression": "PK = :PK",
-            "expressionValues": {
-              ":PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
-            }
-          }
-        }
       ResponseMappingTemplate: $util.toJson($context.result)
+
+  # ByAuthorResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: GraphQLApiSchema
+  #   Properties:
+  #     ApiId: !GetAtt GraphQLApi.ApiId
+  #     TypeName: Query
+  #     FieldName: byAuthor
+  #     DataSourceName: !GetAtt GraphQLDataSource.Name
+  #     RequestMappingTemplate: >
+  #       {
+  #         "version": "2017-02-28",
+  #         "operation": "Query",
+  #         "query": {
+  #           "expression": "SK = :SK",
+  #           "expressionValues": {
+  #             ":SK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+  #           }
+  #         }
+  #       }
+  #     ResponseMappingTemplate: $util.toJson($context.result)
 
   WriteDataResolver:
     Type: AWS::AppSync::Resolver
@@ -182,27 +168,45 @@ Resources:
       RequestMappingTemplate: >
         {
           "version": "2017-02-28",
+          "operation": "PutItem",
+          "key": {
+            "PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+            "SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK)
+          },
+          "attributeValues": {
+            "PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+            "SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK)
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($context.result)
+
+  UpdateDataResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: GraphQLApiSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: updateData
+      DataSourceName: !GetAtt GraphQLDataSource.Name
+      RequestMappingTemplate: >
+        {
+          "version": "2017-02-28",
           "operation": "UpdateItem",
           "key": {
             "PK": $util.dynamodb.toDynamoDBJson($ctx.args.input.PK),
             "SK": $util.dynamodb.toDynamoDBJson($ctx.args.input.SK)
           },
           "update": {
-            "expression": "SET #data = :updateData",
-            "expressionNames": {
-              "#data": "data"
-            },
+            "expression": "SET Book.PK = :PK, Book.SK = :SK",
             "expressionValues": {
-              ":updateData": $util.dynamodb.toDynamoDBJson($ctx.args.input.data)
+              ":PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+              ":SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK)
             }
-          },
-          "condition": {
-            "expression": "attribute_exists(PK) AND attribute_exists(SK)"
           }
         }
       ResponseMappingTemplate: $util.toJson($context.result)
 
-  DeletDataResolver:
+  DeleteDataResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLApiSchema
     Properties:
@@ -225,4 +229,3 @@ Resources:
     Type: AWS::AppSync::ApiKey
     Properties:
       ApiId: !GetAtt GraphQLApi.ApiId
-      Expires: 1627859769
