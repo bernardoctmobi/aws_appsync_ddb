@@ -98,7 +98,7 @@ Resources:
         }
         type Mutation {
           writeData(PK: String!, SK: String!): Book!
-          updateData(PK: String!, SK: String!): Book
+          updateData(PK: String!, SK: String!): Book!
           deleteData(PK: String!, SK: String!): Book
         }
         type Query {
@@ -180,31 +180,35 @@ Resources:
         }
       ResponseMappingTemplate: $util.toJson($context.result)
 
-  UpdateDataResolver:
-    Type: AWS::AppSync::Resolver
-    DependsOn: GraphQLApiSchema
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      TypeName: Mutation
-      FieldName: updateData
-      DataSourceName: !GetAtt GraphQLDataSource.Name
-      RequestMappingTemplate: >
-        {
-          "version": "2017-02-28",
-          "operation": "UpdateItem",
-          "key": {
-            "PK": $util.dynamodb.toDynamoDBJson($ctx.args.input.PK),
-            "SK": $util.dynamodb.toDynamoDBJson($ctx.args.input.SK)
-          },
-          "update": {
-            "expression": "SET Book.PK = :PK, Book.SK = :SK",
-            "expressionValues": {
-              ":PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
-              ":SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK)
-            }
-          }
-        }
-      ResponseMappingTemplate: $util.toJson($context.result)
+  # UpdateDataResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   DependsOn: GraphQLApiSchema
+  #   Properties:
+  #     ApiId: !GetAtt GraphQLApi.ApiId
+  #     TypeName: Mutation
+  #     FieldName: updateData
+  #     DataSourceName: !GetAtt GraphQLDataSource.Name
+  #     RequestMappingTemplate: >
+  #       {
+  #         "version": "2017-02-28",
+  #         "operation": "UpdateItem",
+  #         "key": {
+  #           "PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+  #           "SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK)
+  #         },
+  #         "update": {
+  #           "expression": "SET #PK = :PK, #SK = :SK",
+  #           "expressionNames": {
+  #             "#PK": "PK",
+  #             "#SK": "SK"
+  #           },
+  #           "expressionValues": {
+  #             ":PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+  #             ":SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK)
+  #           }
+  #         }
+  #       }
+  #     ResponseMappingTemplate: $util.toJson($context.result)
 
   DeleteDataResolver:
     Type: AWS::AppSync::Resolver
@@ -219,8 +223,8 @@ Resources:
           "version": "2017-02-28",
           "operation": "DeleteItem",
           "key": {
-            "PK": $util.dynamodb.toDynamoDBJson($ctx.args.input.PK),
-            "SK": $util.dynamodb.toDynamoDBJson($ctx.args.input.SK)
+            "PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+            "SK": $util.dynamodb.toDynamoDBJson($ctx.args.SK)
           }
         }
       ResponseMappingTemplate: $util.toJson($context.result)
