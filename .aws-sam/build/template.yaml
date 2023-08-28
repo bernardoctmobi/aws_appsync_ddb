@@ -92,7 +92,7 @@ Resources:
         \  PK: String!\n  SK: String!\n}\ntype Mutation {\n  writeData(PK: String!,\
         \ SK: String!): Book!\n  updateData(PK: String!, SK: String!): Book\n  deleteData(PK:\
         \ String!, SK: String!): Book\n}\ntype Query {\n  readData(PK: String!, SK:\
-        \ String!): Book\n  byAuthor(SK: String!): [Book]\n}\n"
+        \ String!): Book\n  booksByAuthor(PK: String!): [Book]!\n}\n"
   GraphQLDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
@@ -129,6 +129,25 @@ Resources:
         : \"GetItem\",\n  \"key\": {\n    \"PK\": $util.dynamodb.toDynamoDBJson($ctx.args.PK),\n\
         \    \"SK\": $util.dynamodb.toDynamoDBJson($ctx.args.SK),\n  },\n}\n"
       ResponseMappingTemplate: $util.toJson($context.result)
+  BooksByAuthorResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: GraphQLApiSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - GraphQLApi
+        - ApiId
+      TypeName: Query
+      FieldName: booksByAuthor
+      DataSourceName:
+        Fn::GetAtt:
+        - GraphQLDataSource
+        - Name
+      RequestMappingTemplate: "{\n  \"version\": \"2017-02-28\",\n  \"operation\"\
+        : \"Query\",\n  \"query\": {\n    \"expression\": \"PK = :PK\",\n    \"expressionValues\"\
+        : {\n      \":PK\": $util.dynamodb.toDynamoDBJson($ctx.args.PK),\n    }\n\
+        \  }\n}\n"
+      ResponseMappingTemplate: $util.toJson($context.result.items)
   WriteDataResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLApiSchema

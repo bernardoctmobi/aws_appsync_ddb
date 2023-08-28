@@ -103,7 +103,7 @@ Resources:
         }
         type Query {
           readData(PK: String!, SK: String!): Book
-          byAuthor(SK: String!): [Book]
+          booksByAuthor(PK: String!): [Book]!
         }
 
   GraphQLDataSource:
@@ -136,26 +136,26 @@ Resources:
         }
       ResponseMappingTemplate: $util.toJson($context.result)
 
-  # ByAuthorResolver:
-  #   Type: AWS::AppSync::Resolver
-  #   DependsOn: GraphQLApiSchema
-  #   Properties:
-  #     ApiId: !GetAtt GraphQLApi.ApiId
-  #     TypeName: Query
-  #     FieldName: byAuthor
-  #     DataSourceName: !GetAtt GraphQLDataSource.Name
-  #     RequestMappingTemplate: >
-  #       {
-  #         "version": "2017-02-28",
-  #         "operation": "Query",
-  #         "query": {
-  #           "expression": "SK = :SK",
-  #           "expressionValues": {
-  #             ":SK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
-  #           }
-  #         }
-  #       }
-  #     ResponseMappingTemplate: $util.toJson($context.result)
+  BooksByAuthorResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: GraphQLApiSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: booksByAuthor
+      DataSourceName: !GetAtt GraphQLDataSource.Name
+      RequestMappingTemplate: >
+        {
+          "version": "2017-02-28",
+          "operation": "Query",
+          "query": {
+            "expression": "PK = :PK",
+            "expressionValues": {
+              ":PK": $util.dynamodb.toDynamoDBJson($ctx.args.PK),
+            }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($context.result.items)
 
   WriteDataResolver:
     Type: AWS::AppSync::Resolver
